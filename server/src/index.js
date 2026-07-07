@@ -1,5 +1,8 @@
 import http from 'node:http';
 import os from 'node:os';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Server } from 'socket.io';
 import { EVENTS } from '../../shared/constants.js';
@@ -34,6 +37,15 @@ app.get('/lan-info', (_req, res) => {
   ips.sort((a, b) => rank(a) - rank(b));
   res.json({ ips });
 });
+
+// Produksi satu layanan: sajikan hasil build client (client/dist) dari server
+// yang sama — Socket.io & halaman berbagi satu origin/port.
+const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
+if (fs.existsSync(distDir)) {
+  app.use(express.static(distDir));
+  app.get(/^\/(?!health|lan-info|socket\.io).*/, (_req, res) => res.sendFile(path.join(distDir, 'index.html')));
+  console.log(`📦 Menyajikan client build: ${distDir}`);
+}
 
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {

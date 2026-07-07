@@ -4,9 +4,11 @@ import { useGameStore } from '../store/useGameStore.js';
 import { useAnimStore } from '../store/useAnimStore.js';
 import { sfx } from '../audio/audioManager.js';
 
-// Default mengikuti host halaman (bukan hard-code localhost) supaya perangkat
-// lain di LAN — mis. HP yang scan QR — tersambung ke server yang sama.
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL || `http://${window.location.hostname}:3001`;
+// Dev: server game di port 3001 pada host yang sama (dukungan LAN/QR).
+// Produksi: client disajikan oleh server game itu sendiri -> origin sama.
+export const SERVER_URL =
+  import.meta.env.VITE_SERVER_URL ||
+  (import.meta.env.PROD ? window.location.origin : `http://${window.location.hostname}:3001`);
 
 // Identitas persisten per-browser: dasar rejoin setelah reload/putus koneksi.
 function getSessionId() {

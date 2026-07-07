@@ -1,0 +1,13 @@
+# Blueprint Render.com — deploy satu layanan: server Node menyajikan
+# client build + Socket.io pada satu URL publik.
+services:
+  - type: web
+    name: monopoli-antariksa
+    runtime: node
+    plan: free
+    buildCommand: npm run render-build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
