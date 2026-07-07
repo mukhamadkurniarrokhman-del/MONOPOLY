@@ -21,6 +21,13 @@ export default function Home() {
     if (res?.error) setError(res.error);
   }
 
+  // Enter di kolom nama: langsung GABUNG bila ada kode (undangan QR), else buat room.
+  function onNameKeyDown(e) {
+    if (e.key !== 'Enter' || busy || !name.trim()) return;
+    if (code.length === 4) handle(() => joinRoom(code, name));
+    else handle(() => createRoom(name));
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -58,8 +65,10 @@ export default function Home() {
         )}
         <input
           data-testid="input-name"
+          autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={onNameKeyDown}
           placeholder="Nama Pemain"
           maxLength={20}
           className="w-full rounded-lg border border-white/10 bg-space-800 px-4 py-3 outline-none placeholder:text-slate-500 focus:border-neon-cyan/60"

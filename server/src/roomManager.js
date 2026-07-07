@@ -230,7 +230,9 @@ export class RoomManager {
 
     const usedTokens = new Set(room.players.map((p) => p.token));
     const token = TOKENS.find((t) => !usedTokens.has(t));
-    room.players.push({ id: sessionId, name: playerName, token, ready: false, disconnected: false });
+    // pemain yang bergabung langsung dianggap SIAP — tanpa ritual tombol,
+    // host bisa memulai begitu semua orang masuk.
+    room.players.push({ id: sessionId, name: playerName, token, ready: true, disconnected: false });
     this.sessions.set(sessionId, room.code);
     this.attach(socket, sessionId);
     socket.join(room.code);

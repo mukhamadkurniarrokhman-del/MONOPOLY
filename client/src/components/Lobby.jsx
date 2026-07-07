@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useGameStore } from '../store/useGameStore.js';
-import { setReady, startGame, leaveRoom, addBot, removeBot, setMap, SERVER_URL } from '../network/socket.js';
+import { startGame, leaveRoom, addBot, removeBot, setMap, SERVER_URL } from '../network/socket.js';
 import { MIN_PLAYERS, MAX_PLAYERS, formatRupiah } from '@shared/constants.js';
 import { MAP_LIST, DEFAULT_MAP_ID, getMap, getTokenDisplay } from '@shared/mapConfigs.js';
 
@@ -79,7 +79,6 @@ export default function Lobby() {
   const inviteBase = lanBase ?? window.location.origin;
 
   if (!room) return null;
-  const self = room.players.find((p) => p.id === selfId);
   const isHost = room.hostId === selfId;
   const canStart =
     room.players.length >= MIN_PLAYERS &&
@@ -153,10 +152,8 @@ export default function Lobby() {
               )
             ) : p.isHost ? (
               <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300">HOST</span>
-            ) : p.ready ? (
-              <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">SIAP</span>
             ) : (
-              <span className="rounded-full bg-slate-500/15 px-3 py-1 text-xs text-slate-400">menunggu…</span>
+              <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">SIAP</span>
             )}
           </motion.li>
         ))}
@@ -197,17 +194,13 @@ export default function Lobby() {
             MULAI PERMAINAN
           </button>
         ) : (
-          <button
-            data-testid="btn-ready"
-            onClick={() => setReady(!self?.ready)}
-            className={`flex-1 rounded-lg py-3 font-bold tracking-wide transition ${
-              self?.ready
-                ? 'border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/10'
-                : 'bg-gradient-to-r from-cyan-500 to-purple-600 hover:brightness-110'
-            }`}
+          <div
+            data-testid="waiting-host"
+            className="flex flex-1 items-center justify-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 py-3 text-sm font-semibold text-emerald-300"
           >
-            {self?.ready ? '✓ SIAP — batalkan' : 'SIAP'}
-          </button>
+            ✓ Kamu siap — menunggu host memulai
+            <span className="ml-1 animate-pulse">…</span>
+          </div>
         )}
       </div>
 
