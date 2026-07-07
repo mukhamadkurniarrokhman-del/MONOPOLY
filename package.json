@@ -1,0 +1,14 @@
+{
+  "name": "space-monopoly",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Monopoli Antariksa - 3D Space-Themed Monopoly (React Three Fiber + Socket.io)",
+  "scripts": {
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-space-950: #05060f;
+  --color-space-900: #0a0d1f;
+  --color-space-800: #131735;
+  --color-neon-cyan: #22d3ee;
+  --color-neon-purple: #a855f7;
+  --font-display: "Orbitron", "Segoe UI", sans-serif;
+}
+
+body {
+  @apply bg-space-950 text-slate-100 antialiased;
+  background-image:
+    radial-gradient(ellipse at 20% 10%, rgba(168, 85, 247, 0.12), transparent 50%),
+    radial-gradient(ellipse at 80% 90%, rgba(34, 211, 238, 0.10), transparent 50%);
+  min-height: 100vh;
+}
