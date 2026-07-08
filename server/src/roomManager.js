@@ -199,9 +199,19 @@ export class RoomManager {
 
   // ---------- lobby ----------
 
+  // Sesi yang masih menempel di room lama dilepas otomatis — pemain tidak
+  // boleh terkunci "sudah berada di dalam room" saat ingin main di room baru.
+  detachSession(sessionId) {
+    const code = this.sessions.get(sessionId);
+    if (!code) return;
+    const room = this.rooms.get(code);
+    if (room) this.finalLeave(room, sessionId);
+    else this.sessions.delete(sessionId);
+  }
+
   createRoom(socket, { name, sessionId } = {}, ack) {
     if (!this.validSession(sessionId)) return ack?.({ error: 'Sesi tidak valid.' });
-    if (this.sessions.has(sessionId)) return ack?.({ error: 'Kamu sudah berada di dalam room.' });
+    this.detachSession(sessionId);
     const playerName = String(name || '').trim().slice(0, 20);
     if (!playerName) return ack?.({ error: 'Nama pemain wajib diisi.' });
 
@@ -233,14 +243,15 @@ export class RoomManager {
     if (this.sessions.get(sessionId) === targetCode) {
       return this.resume(socket, { sessionId }, ack);
     }
-    if (this.sessions.has(sessionId)) return ack?.({ error: 'Kamu sudah berada di dalam room.' });
     const playerName = String(name || '').trim().slice(0, 20);
     if (!playerName) return ack?.({ error: 'Nama pemain wajib diisi.' });
 
     const room = this.rooms.get(targetCode);
-    if (!room) return ack?.({ error: 'Room tidak ditemukan.' });
+    if (!room) return ack?.({ error: 'Room tidak ditemukan — minta kode/QR terbaru dari host.' });
+    // lepaskan dari room lama HANYA bila room tujuan valid & bisa dimasuki
     if (room.phase !== 'lobby') return ack?.({ error: 'Permainan sudah dimulai.' });
     if (room.players.length >= MAX_PLAYERS) return ack?.({ error: `Room penuh (maks. ${MAX_PLAYERS} pemain).` });
+    this.detachSession(sessionId);
 
     const usedTokens = new Set(room.players.map((p) => p.token));
     const token = TOKENS.find((t) => !usedTokens.has(t));

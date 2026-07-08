@@ -27,6 +27,10 @@ export const socket = io(SERVER_URL, { autoConnect: true });
 // --- inbound: server drives the store, UI just renders it ---
 function handleResume(res) {
   if (!res?.room) return;
+  // Tautan undangan (?room=X) MENANG atas resume otomatis: jangan seret
+  // pemain kembali ke room lamanya saat ia sedang membuka undangan room lain.
+  const invited = new URLSearchParams(window.location.search).get('room')?.toUpperCase();
+  if (invited && invited !== res.room.code) return;
   const store = useGameStore.getState();
   store.setSelf(res.selfId);
   store.setRoom(res.room);
