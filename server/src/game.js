@@ -24,6 +24,8 @@ export class Game {
     this.turnIndex = 0;
     this.phase = 'awaiting_roll'; // awaiting_roll | awaiting_buy | awaiting_card | auction | post_roll | finished
     this.pendingCard = null; // kartu tertarik yang menunggu tombol JALANKAN
+    // batas durasi: saat habis, pemain terkaya dinyatakan menang
+    this.endsAt = Date.now() + (Number(process.env.GAME_TIME_LIMIT_MS) || 30 * 60 * 1000);
     this.auction = null; // { tileIndex, highBid, highBidder, endsAt, minIncrement }
     this.trade = null; // { from, to, offerMoney, offerProps, requestMoney, requestProps, endsAt }
     this.doubles = 0;
@@ -279,6 +281,8 @@ export class Game {
     return null;
   }
 
+  // Aturan rumah (disederhanakan): boleh membangun di petak mana pun yang
+  // kamu miliki — tanpa syarat grup warna lengkap maupun bangun-merata.
   build(playerId, tileIndex) {
     const err = this.turnGuard(playerId);
     if (err) return { error: err };
@@ -288,18 +292,10 @@ export class Game {
     const owned = this.properties[tileIndex];
     if (!tile || tile.type !== TILE_TYPES.PROPERTY) return { error: 'Petak ini tidak bisa dibangun.' };
     if (!owned || owned.owner !== p.id) return { error: 'Kamu tidak memiliki properti ini.' };
-
-    const group = this.map.groups[tile.group];
-    const ownsAll = group.tiles.every((t) => this.properties[t]?.owner === p.id);
-    if (!ownsAll) return { error: 'Harus memiliki seluruh grup warna dulu.' };
-    if (group.tiles.some((t) => this.properties[t]?.mortgaged)) {
-      return { error: 'Tebus dulu properti grup ini yang sedang dihipotek.' };
-    }
+    if (owned.mortgaged) return { error: 'Tebus hipoteknya dulu.' };
     if (owned.level >= 5) return { error: 'Sudah menjadi Koloni Antariksa (maksimal).' };
 
-    // aturan bangun merata (even-build)
-    const minLevel = Math.min(...group.tiles.map((t) => this.properties[t].level));
-    if (owned.level > minLevel) return { error: 'Bangun merata: upgrade properti lain di grup ini dulu.' };
+    const group = this.map.groups[tile.group];
     if (p.balance < group.houseCost) return { error: 'Saldo tidak cukup.' };
 
     p.balance -= group.houseCost;
@@ -319,9 +315,6 @@ export class Game {
     if (!tile?.price || !owned || owned.owner !== p.id) return { error: 'Kamu tidak memiliki properti ini.' };
     if (owned.mortgaged) return { error: 'Properti ini sudah dihipotek.' };
     if (owned.level > 0) return { error: 'Jual bangunannya dulu.' };
-    if (tile.group && this.map.groups[tile.group].tiles.some((t) => (this.properties[t]?.level ?? 0) > 0)) {
-      return { error: 'Jual semua bangunan di grup warna ini dulu.' };
-    }
 
     owned.mortgaged = true;
     const value = tile.price / 2;
@@ -691,6 +684,29 @@ export class Game {
     }
   }
 
+  // Waktu habis: hitung kekayaan bersih semua pemain hidup — terkaya menang.
+  endByTime() {
+    if (this.winner) return;
+    const worth = (p) =>
+      p.balance +
+      Object.entries(this.properties).reduce((sum, [idx, v]) => {
+        if (v.owner !== p.id) return sum;
+        const tile = this.map.board[idx];
+        const group = tile.group ? this.map.groups[tile.group] : null;
+        return sum + (v.mortgaged ? tile.price / 2 : tile.price) + (group ? v.level * group.houseCost : 0);
+      }, 0);
+
+    const ranked = this.players.filter((p) => !p.bankrupt).sort((a, b) => worth(b) - worth(a));
+    this.addLog('⏱ WAKTU HABIS! Kekayaan bersih dihitung:');
+    for (const p of ranked) this.addLog(`• ${p.name}: ${formatRupiah(worth(p))}`);
+    this.winner = ranked[0].id;
+    this.phase = 'finished';
+    this.auction = null;
+    this.trade = null;
+    this.pendingCard = null;
+    this.addLog(`🏆 ${ranked[0].name} MENGUASAI GALAKSI dengan kekayaan terbanyak!`);
+  }
+
   nextTurn() {
     if (this.winner) return;
     this.doubles = 0;
@@ -716,6 +732,7 @@ export class Game {
       lastCard: this.lastCard,
       pendingCard: this.pendingCard,
       winner: this.winner,
+      timeRemainingMs: Math.max(0, this.endsAt - Date.now()),
       auction: this.auction
         ? { ...this.auction, remainingMs: Math.max(0, this.auction.endsAt - Date.now()) }
         : null,

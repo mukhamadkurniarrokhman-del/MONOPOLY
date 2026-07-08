@@ -59,8 +59,11 @@ function TileModal({ idx, game, selfId, onClose }) {
   const isMine = owned?.owner === selfId;
   const myTurn = game.currentPlayerId === selfId && game.phase !== 'awaiting_buy' && !game.winner;
   const groupHasBuildings = group ? group.tiles.some((t) => (game.properties[String(t)]?.level ?? 0) > 0) : false;
-  const canMortgage = isMine && myTurn && !owned.mortgaged && !groupHasBuildings;
+  const canMortgage = isMine && myTurn && !owned.mortgaged && owned.level === 0;
   const canUnmortgage = isMine && myTurn && owned.mortgaged;
+  const canBuild = isMine && myTurn && isProp && !owned.mortgaged && owned.level < 5;
+  const buildCost = group?.houseCost ?? 0;
+  const buildLabel = owned?.level === 4 ? '🏙️ Bangun Koloni Antariksa' : `🤖 Bangun Rover Riset ke-${(owned?.level ?? 0) + 1}`;
   const mortgageValue = tile.price ? tile.price / 2 : 0;
   const unmortgageCost = tile.price ? Math.round((tile.price / 2) * 1.1) : 0;
 
@@ -142,8 +145,18 @@ function TileModal({ idx, game, selfId, onClose }) {
           </p>
         )}
 
-        {(canMortgage || canUnmortgage) && (
-          <div className="mt-4 border-t border-cyan-400/20 pt-3">
+        {(canBuild || canMortgage || canUnmortgage) && (
+          <div className="mt-4 space-y-2 border-t border-cyan-400/20 pt-3">
+            {canBuild && (
+              <button
+                data-testid="btn-build-modal"
+                disabled={(game.players.find((p) => p.id === selfId)?.balance ?? 0) < buildCost}
+                onClick={() => doAction('build')}
+                className="w-full rounded-lg border border-cyan-400/50 py-2.5 text-sm font-bold text-neon-cyan transition hover:bg-cyan-400/10 disabled:opacity-40"
+              >
+                {buildLabel} — {formatRupiah(buildCost)}
+              </button>
+            )}
             {canMortgage && (
               <button
                 data-testid="btn-mortgage"
@@ -167,6 +180,39 @@ function TileModal({ idx, game, selfId, onClose }) {
         {error && <p className="mt-2 rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs text-rose-300">{error}</p>}
       </motion.div>
     </motion.div>
+  );
+}
+
+// ---------- Jam batas permainan (30 menit -> terkaya menang) ----------
+function GameClock({ game }) {
+  const [now, setNow] = useState(Date.now());
+  const deadline = useRef(Date.now() + (game.timeRemainingMs ?? 0));
+
+  useEffect(() => {
+    deadline.current = Date.now() + (game.timeRemainingMs ?? 0);
+  }, [game.timeRemainingMs]);
+
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  if (game.winner || game.timeRemainingMs == null) return null;
+  const sisa = Math.max(0, deadline.current - now);
+  const m = Math.floor(sisa / 60000);
+  const s = Math.floor((sisa % 60000) / 1000);
+  const kritis = sisa < 5 * 60000;
+
+  return (
+    <div
+      data-testid="game-clock"
+      className={`absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full border px-4 py-1 font-mono text-sm font-bold backdrop-blur ${
+        kritis ? 'animate-pulse border-rose-400/60 bg-rose-950/70 text-rose-300' : 'border-white/15 bg-space-900/80 text-slate-200'
+      }`}
+      title="Saat waktu habis, pemain terkaya menang"
+    >
+      ⏱ {m}:{String(s).padStart(2, '0')}
+    </div>
   );
 }
 
@@ -442,14 +488,11 @@ function ActionBar({ game, selfId, setError }) {
   }
 
   const tile = BOARD[me.position];
+  // aturan bangun longgar: cukup memilikinya, tidak terhipotek, saldo cukup
   const buildable = Object.entries(game.properties).filter(([idx, v]) => {
-    if (v.owner !== selfId || v.level >= 5) return false;
+    if (v.owner !== selfId || v.level >= 5 || v.mortgaged) return false;
     const t = BOARD[idx];
-    if (t.type !== TILE_TYPES.PROPERTY) return false;
-    const g = GROUPS[t.group];
-    if (!g.tiles.every((ti) => game.properties[String(ti)]?.owner === selfId)) return false;
-    const minLv = Math.min(...g.tiles.map((ti) => game.properties[String(ti)].level));
-    return v.level <= minLv && me.balance >= g.houseCost;
+    return t.type === TILE_TYPES.PROPERTY && me.balance >= GROUPS[t.group].houseCost;
   });
 
   const btn = 'pointer-events-auto rounded-xl px-5 py-3 font-bold tracking-wide transition disabled:opacity-40 backdrop-blur';
@@ -525,6 +568,7 @@ export default function GameScreen() {
   return (
     <div className="fixed inset-0 overflow-hidden">
       <SpaceBoard game={game} onTileClick={setSelected} />
+      <GameClock game={game} />
 
       {/* HUD */}
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3">

@@ -50,6 +50,7 @@ export class RoomManager {
       this.driveBots(room);
       this.manageAuction(room);
       this.manageTrade(room);
+      this.manageGameClock(room);
       console.log(`[room ${room.code}] dipulihkan dari Redis (${room.players.length} pemain, fase ${room.phase})`);
     }
     if (saved.length) console.log(`🗄️  ${saved.length} room dipulihkan`);
@@ -106,6 +107,19 @@ export class RoomManager {
     this.driveBots(room);
     this.manageAuction(room);
     this.manageTrade(room);
+    this.manageGameClock(room);
+  }
+
+  // Timer batas durasi permainan — saat habis, terkaya dinyatakan menang.
+  manageGameClock(room) {
+    clearTimeout(room.clockTimer);
+    const game = room.game;
+    if (!game || game.winner) return;
+    room.clockTimer = setTimeout(() => {
+      if (room.game !== game || game.winner) return;
+      game.endByTime();
+      this.broadcastGame(room);
+    }, Math.max(0, game.endsAt - Date.now()) + 60);
   }
 
   // ---------- pertukaran ----------
@@ -422,6 +436,15 @@ export class RoomManager {
     } else if (game.phase === 'awaiting_card') {
       game.ackCard(bot.id); // bot langsung menjalankan kartunya
     } else if (game.phase === 'post_roll') {
+      // bot membangun bila kaya: satu bangunan per giliran di properti termurah
+      const target = Object.entries(game.properties)
+        .filter(([idx, v]) => {
+          if (v.owner !== bot.id || v.mortgaged || v.level >= 5) return false;
+          const tile = game.map.board[idx];
+          return tile.type === 'property' && bot.balance >= game.map.groups[tile.group].houseCost * 3;
+        })
+        .sort((a, b) => game.map.board[a[0]].price - game.map.board[b[0]].price)[0];
+      if (target) game.build(bot.id, Number(target[0]));
       game.endTurn(bot.id);
     }
     this.broadcastGame(room);
@@ -517,6 +540,7 @@ export class RoomManager {
     clearTimeout(room.auctionBotTimer);
     clearTimeout(room.tradeTimer);
     clearTimeout(room.tradeBotTimer);
+    clearTimeout(room.clockTimer);
     for (const t of room.leaveTimers.values()) clearTimeout(t);
     this.rooms.delete(room.code);
     this.persistence.deleteRoom(room.code);
