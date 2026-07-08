@@ -457,7 +457,11 @@ function ActionBar({ game, selfId, setError }) {
     <div className="flex flex-wrap items-center justify-center gap-2">
       {game.phase === 'awaiting_roll' && (
         <>
-          <button data-testid="btn-roll" onClick={() => act(rollDice)} className={`${btn} bg-gradient-to-r from-cyan-500 to-purple-600 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110`}>
+          <button
+            data-testid="btn-roll"
+            onClick={() => act(rollDice)}
+            className="pointer-events-auto rounded-xl border-2 border-white/50 bg-gradient-to-r from-cyan-400 to-purple-500 px-7 py-3.5 text-base font-black tracking-wide text-white shadow-[0_0_30px_rgba(34,211,238,0.7)] transition hover:brightness-110 disabled:opacity-40"
+          >
             🎲 LEMPAR DADU
           </button>
           {me.inJail && (
@@ -508,7 +512,8 @@ export default function GameScreen() {
   const selfId = useGameStore((s) => s.selfId);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState('');
-  const [showLog, setShowLog] = useState(true);
+  // di layar sempit (HP) log default terlipat agar tak menutupi area dadu
+  const [showLog, setShowLog] = useState(() => window.innerWidth >= 640);
   const diceRolling = useAnimStore((s) => s.diceRolling);
   const tokenMoving = useAnimStore((s) => s.followingCount > 0);
   useAudioTriggers(game, selfId);
@@ -564,13 +569,13 @@ export default function GameScreen() {
         </div>
       </div>
 
-      {/* log kanan-bawah */}
-      <div className="absolute bottom-3 right-3 z-10 w-72">
+      {/* log: HP = panel kecil kanan-atas (di bawah badge), desktop = kanan-bawah */}
+      <div className="absolute right-2 top-14 z-10 w-48 sm:right-3 sm:top-auto sm:bottom-3 sm:w-72">
         <button onClick={() => setShowLog(!showLog)} className="mb-1 w-full rounded-lg border border-white/10 bg-space-900/80 px-3 py-1 text-left text-[10px] tracking-widest text-slate-500 backdrop-blur hover:text-slate-300">
           {showLog ? '▼' : '▲'} LOG TRANSMISI
         </button>
         {showLog && (
-          <div data-testid="game-log" className="max-h-40 overflow-y-auto rounded-xl border border-white/10 bg-space-900/80 p-2.5 text-[11px] leading-relaxed text-slate-400 backdrop-blur">
+          <div data-testid="game-log" className="max-h-32 overflow-y-auto rounded-xl border border-white/10 bg-space-900/80 p-2.5 text-[11px] leading-relaxed text-slate-400 backdrop-blur sm:max-h-40">
             {[...game.log].reverse().map((l, i) => (
               <p key={l.t + '-' + i} className={i === 0 ? 'text-slate-100' : ''}>{l.text}</p>
             ))}
