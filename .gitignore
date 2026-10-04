@@ -5,3 +5,4 @@ build/
 *.local
 .DS_Store
 tools/
+server.log
