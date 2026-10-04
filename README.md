@@ -1,3 +1,13 @@
+---
+title: Monopoli Antariksa
+emoji: 🚀
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # 🚀 Monopoli Antariksa (Space Monopoly)
 
 3D space-themed Monopoly — React Three Fiber frontend, Node.js + Socket.io realtime backend.
